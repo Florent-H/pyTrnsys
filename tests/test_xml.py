@@ -832,11 +832,10 @@ class TestDeck:
         dck.update_models([tank_type, pipe_type])
         assert len(dck.models) == 3
 
-    def test_deck_graph(self, pvt_deck, G):
+    def test_deck_graph(self, G):
         import matplotlib.pyplot as plt
         import networkx as nx
 
-        print(len(pvt_deck.models))
         assert not nx.is_empty(G)
         pos = {
             unit: tuple((pos.x, pos.y)) if pos else tuple((50, 50))
@@ -849,7 +848,7 @@ class TestDeck:
         "pygraphviz" not in sys.modules,
         reason="Skipping this test on Travis CI.",
     )
-    def test_deck_graphviz(self, pvt_deck, G):
+    def test_deck_graphviz(self, G):
         import matplotlib.pyplot as plt
         import networkx as nx
 
@@ -871,6 +870,44 @@ class TestDeck:
 
     def test_save(self, pvt_deck):
         pvt_deck.to_file("test.dck", None, "w")
+
+    @pytest.fixture()
+    def components_string(self):
+        yield r"""
+        UNIT 3 TYPE  11 Tee Piece
+        *$UNIT_NAME Tee Piece
+        *$MODEL tests\input_files\Type11h.xml
+        *$POSITION 50.0 50.0
+        *$LAYER Main
+        PARAMETERS 1
+        1  ! 1 Tee piece mode
+        INPUTS 4
+        0,0  ! [unconnected] Tee Piece:Temperature at inlet 1
+        flowRateDoubled  ! double:flowRateDoubled -> Tee Piece:Flow rate at inlet 1
+        0,0  ! [unconnected] Tee Piece:Temperature at inlet 2
+        0,0  ! [unconnected] Tee Piece:Flow rate at inlet 2
+        *** INITIAL INPUT VALUES
+        20   ! Temperature at inlet 1
+        100  ! Flow rate at inlet 1
+        20   ! Temperature at inlet 2
+        100  ! Flow rate at inlet 2
+
+        * EQUATIONS "double"
+        *
+        EQUATIONS 1
+        flowRateDoubled  =  2*[1, 2]
+        *$UNIT_NAME double
+        *$LAYER Main
+        *$POSITION 50.0 50.0
+        *$UNIT_NUMBER 2
+        """
+
+    @pytest.mark.parametrize("proforma_root", [None, "tests/input_files"])
+    def test_load(self, components_string, proforma_root):
+        from trnsystor import Deck
+
+        dck = Deck.loads(components_string, proforma_root=proforma_root)
+        assert len(dck.models) == 2
 
 
 class TestComponent:
